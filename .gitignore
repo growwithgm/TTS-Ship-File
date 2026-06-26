@@ -1,0 +1,12 @@
+# Node deps used only for the prep/verify tooling
+node_modules/
+tools/node_modules/
+tools/package-lock.json
+tools/package.json
+
+# Generated intermediate (the base64 lives embedded in index.html)
+tools/template.b64.txt
+
+# OS / editor cruft
+.DS_Store
+*.swp
