@@ -1,12 +1,16 @@
 # GROW NEST — TikTok Ship File Converter
 
-Internal tool for **GROW NEST** (e-commerce operations). Converts an Amazon
-tracking **`.txt`** export into a TikTok Shop **"Ship File" `.xlsx`** that
-uploads cleanly into Seller Center.
+Convert an Amazon tracking **`.txt`** export into a TikTok Shop **"Ship File"
+`.xlsx`** — entirely in the browser, no data ever leaves the machine.
 
-It is a **single, offline `index.html`** — inline CSS + JS, no build step, no
-backend, no dependencies to install. The only external request is the `fflate`
-library from a CDN. Your file never leaves the browser.
+**🔗 Live app: https://growwithgm.github.io/TTS-Ship-File/**
+
+Internal tool for **GROW NEST** (e-commerce operations). It is a **single,
+fully self-contained `index.html`** — inline CSS + JS, the `fflate` library
+embedded inline, **zero external requests**, no build step, no backend. It runs
+**100% client-side**: your file is read, converted, and downloaded in the browser
+and never uploaded anywhere. Works online, offline, or opened straight from disk
+via `file://`.
 
 > UI language is **Roman Urdu** (labels/messages); technical terms stay English.
 
@@ -92,11 +96,31 @@ the 24-item dropdown exactly.
 ## Project layout
 
 ```
-index.html                         The app (open this). Embeds TEMPLATE_B64.
+index.html                         The app (open this). fflate + TEMPLATE_B64 inlined.
 tools/prep-template.mjs            Regenerates TEMPLATE_B64 from a template .xlsx.
+tools/embed-fflate.mjs             Inlines the fflate UMD into index.html (offline).
 template/Ship_File_Template.xlsx   TikTok's official template (source for prep).
 sample/Seguimiento_Amazon_sample.txt   Sanitized sample input (fake data).
+.github/workflows/deploy.yml       GitHub Pages auto-deploy on push to main.
+.nojekyll                          Serve files as-is on Pages (skip Jekyll).
 ```
+
+## Fully offline — no CDN
+
+`fflate` (the zip library used to unzip/rezip the `.xlsx`) is **embedded inline**
+in `index.html`, so the page has **zero external requests** and works with no
+internet, on networks that block CDNs, or opened directly via `file://`.
+
+To refresh it to a specific `fflate` version (must be the **UMD** build — it
+exposes the `fflate` global in a plain `<script>`; the ESM build does not):
+
+```bash
+npm pack fflate@0.8.2 && tar -xzf fflate-0.8.2.tgz   # -> package/umd/index.js
+node tools/embed-fflate.mjs package/umd/index.js index.html
+```
+
+The tool swaps the inline block (between the `FFLATE_UMD_START` / `FFLATE_UMD_END`
+markers) and refuses to write if any external `src`/`href` reference would remain.
 
 ## Regenerating the embedded template
 
@@ -112,20 +136,31 @@ This strips the filler rows from the `Shipping info` sheet, inserts the
 privacy, re-zips, base64-encodes, and splices the result into `index.html`
 between the `TEMPLATE_B64_START` / `TEMPLATE_B64_END` markers.
 
+## Hosting (GitHub Pages)
+
+The app is a single static `index.html` at the repo root, deployed to GitHub
+Pages via `.github/workflows/deploy.yml` (official Pages actions). Every push to
+`main` redeploys automatically. Live URL:
+**https://growwithgm.github.io/TTS-Ship-File/**
+
+One-time setup in the GitHub web UI: **Settings → Pages → Build and deployment →
+Source = "GitHub Actions"**. After the deploy workflow finishes (Actions tab),
+the URL appears on the Pages settings page and in the workflow's `deploy` job.
+
 ## Privacy
 
-- **No uploads, no server, no `localStorage`/`sessionStorage`.** Everything runs
-  in the browser; the file never leaves the machine.
-- The only network request is loading `fflate` from
-  `cdnjs.cloudflare.com`.
+- **100% client-side. No uploads, no server, no `localStorage`/`sessionStorage`,
+  no external requests.** Everything runs in the browser; the file never leaves
+  the machine.
 - The prep tool blanks any leftover sample order/tracking values from the source
   template so no real order data ships in the embedded base64.
 
 ## Verified
 
-The generated `.xlsx` was parsed back (headless Chromium + `fflate`, and
-independently with `openpyxl`) confirming: all 4 sheets present with correct
-visible/hidden states, headers intact on row 2, data in columns A/H/I from row 4,
-exactly one dropdown validation per data row pointing at `A1:A24`, and
-`meta_info_sheet` byte-identical to the original template. The UI was checked for
-horizontal overflow down to 360px width.
+The generated `.xlsx` was parsed back (headless Chromium **with all network
+blocked** + `fflate`, and independently with `openpyxl`) confirming: the page
+makes zero external requests, all 4 sheets present with correct visible/hidden
+states, headers intact on row 2, data in columns A/H/I from row 4, exactly one
+dropdown validation per data row pointing at `A1:A24`, and `meta_info_sheet`
+byte-identical to the original template. The UI was checked for horizontal
+overflow down to 360px width.
